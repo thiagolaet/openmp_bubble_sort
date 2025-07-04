@@ -5,7 +5,6 @@
 
 // Função para gerar um vetor de inteiros aleatórios de 0 até 999999
 int* generate_random_array(int n) {
-    srand(time(NULL));
     int* array = malloc(n * sizeof(int));
     for (int i = 0; i < n; i++) {
         array[i] = rand() % 1000000;
@@ -13,58 +12,50 @@ int* generate_random_array(int n) {
     return array;
 }
 
-void swap(int* arr, int i, int j) {
-    int temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
+void compare_exchange(int* arr, int i, int j) {
+    if (arr[i] > arr[j]) {
+        int temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+    }
 }
 
-// Bubble Sort sequencial
-void sequential_bubble_sort(int arr[], int n) {
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = 0; j < n - i - 1; j++) {
-            if (arr[j] > arr[j + 1])
-                swap(arr, j, j + 1);
+void parallel_odd_even_sort(int arr[], int n, int num_threads) {
+    for( int i = 0; i < n; i++ ) {
+        int first = i % 2;
+        #pragma omp parallel for
+        for(int j = first; j < n-1; j += 2) {
+            compare_exchange(arr, j, j+1);
         }
     }
 }
 
-// Bubble Sort paralela
-void parallel_bubble_sort() {
-    printf("Versão paralela ainda não implementada!\n");
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        printf("Uso: %s <n> <use_parallel>\n", argv[0]);
-        printf("use_parallel: 0 = sequencial, 1 = paralelo\n");
+        printf("Uso: %s <n> <num_threads>\n", argv[0]);
         return 1;
     }
     int n = atoi(argv[1]);
-    int use_parallel = atoi(argv[2]);
+    int num_threads = atoi(argv[2]);
 
     if (n <= 0) {
         printf("Erro: n deve ser positivo\n");
         return 1;
     }
-    if (use_parallel != 0 && use_parallel != 1) {
-        printf("Erro: use_parallel deve ser 0 (sequencial) ou 1 (paralelo)\n");
+    if (num_threads < 1) {
+        printf("Erro: num_threads deve ser positivo\n");
         return 1;
     }
 
+    srand(time(NULL));
     int *array = generate_random_array(n);
-    printf("Tamanho do vetor: %d\n", n);
-    printf("Algoritmo: %s\n", use_parallel ? "Paralelo" : "Sequencial");
+    printf("num_threads: %d | n: %d\n", num_threads, n);
+    omp_set_num_threads(num_threads);
 
-    if (use_parallel == 0) {
-        // sequencial
-        double start = omp_get_wtime();
-        sequential_bubble_sort(array, n);
-        double end = omp_get_wtime();
-        printf("Tempo sequencial: %.4f segundos\n", end - start);
-    } else {
-        // paralelo
-    }
+    double start = omp_get_wtime();
+    parallel_odd_even_sort(array, n, num_threads);
+    double end = omp_get_wtime();
+    printf("Tempo: %.4f segundos\n", end - start);
 
     free(array);
     return 0;
